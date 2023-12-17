@@ -34,6 +34,12 @@ short line_lcd = 0;         // строка дисплея
 int dt[6];                  // хранит текущие значения времени и даты для настройки
 uint32_t sec_blink = millis(); // для работы с задержками
 
+/*
+ DS3231 согласно datasheet имеен погрешность +/- 3 гр. 
+ Опытным путём была утановлена погрешность данного модуля в 1.2 град в большую сторону.
+*/
+const float correction_temp = 1.2;
+
 
 // Пункты меню
 const int ml_hour_and_day = 0;
@@ -52,9 +58,6 @@ void setup() {
   lcd.begin(); 
   lcd.backlight();
    
-  // lcd.setCursor(0, 1);
-  // lcd.print("Date:"); 
-
   // Настройки порта
    Serial.begin(9600);
   
@@ -76,19 +79,21 @@ void loop() {
   if(!is_settings){
   // если прошла 1 секунда выводим время
     if (millis() % 1000 == 0) {
-
+      // вывод времени
       lcd.setCursor(0, 0);
       lcd.print(rtc.getTimeString());
       Serial.println(rtc.getTemperatureFloat());
 
       if(last_day != rtc.getDay()){
+        // вывод даты, обновляется раз в сутки
         lcd.setCursor(0, 1);
         lcd.print(rtc.getDateString());
         last_day = rtc.getDay();
       }
 
       if(current_temp != rtc.getTemperatureFloat()){
-        current_temp = rtc.getTemperatureFloat();
+        // вывод температуры, при езменении
+        current_temp = rtc.getTemperatureFloat() - correction_temp;
         lcd.setCursor(9, 0);
         lcd.print(current_temp);
         lcd.print(" C");
@@ -210,7 +215,7 @@ void print_on_lcd(char *format_str, int value){
 void save_settings_and_exit(){
   // Сброс пременных на начальные значения и сохранение значений
 
-  if (!change_min) dt[1] = rtc.getMinutes();  // если минуты не изменяли обновляем данные в массиве для сохранения точности хода
+  if (!change_min) dt[1] = rtc.getMinutes();  // если минуты не изменяли, обновляем данные в массиве, для сохранения точности хода
 
   // сброс значений на исходные 
   menu_level = -3;
