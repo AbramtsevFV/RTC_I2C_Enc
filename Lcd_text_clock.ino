@@ -27,7 +27,7 @@ EncButton enc(CLK, DT, SW, INPUT, INPUT_PULLUP);
 
 
 // Объявим переменные 
-int last_day = 0;           // для ежедневного рбновления даты на дисплее
+byte last_day = 0;           // для ежедневного рбновления даты на дисплее
 float current_temp =0.0;
 short menu_level = -3;       // уровень меню
 short line_lcd = 0;         // строка дисплея
@@ -42,9 +42,9 @@ const float correction_temp = 1.2;
 
 
 // Пункты меню
-const int ml_hour_and_day = 0;
-const int ml_minute_and_month = 3;
-const int ml_year = 6;
+const byte ml_hour_and_day = 0;
+const byte ml_minute_and_month = 3;
+const byte ml_year = 6;
 
 // флаги
 bool is_settings = false;  // флаг дла работы с меню настроек
@@ -52,12 +52,10 @@ bool on_off_lcd = true;    // флаг для мигания курсором
 bool change_min = false;   // флаг для определения были ли изменины минуты
 
 
-
 void setup() {
   // Настройки lCD
   lcd.begin(); 
   lcd.backlight();
-   
   // Настройки порта
    Serial.begin(9600);
   
@@ -82,7 +80,6 @@ void loop() {
       // вывод времени
       lcd.setCursor(0, 0);
       lcd.print(rtc.getTimeString());
-      Serial.println(rtc.getTemperatureFloat());
 
       if(last_day != rtc.getDay()){
         // вывод даты, обновляется раз в сутки
@@ -113,7 +110,8 @@ void setup_rtc(){
   if(enc.press() ){
 
     if(!is_settings){ 
-      update_initial_values_dt();     
+      update_initial_values_dt(); 
+  
     }
     menu_level += 3;                  // переход на следующий уровень меню
   }
@@ -138,7 +136,7 @@ void setup_rtc(){
 
     if (menu_level == ml_minute_and_month && line_lcd == 0 ){
       // настройка минут
-      change_the_numbers(menu_level, line_lcd, 1, 0, 60);
+      change_the_numbers(menu_level, line_lcd, 1, 0, 59);
 
       // Провека былили изменины минуты
       if( enc.turn() && !change_min) change_min = true;   
@@ -158,12 +156,12 @@ void setup_rtc(){
       // настройка года
       change_the_numbers(menu_level, line_lcd, 4, 1988, 2099);
     
-    }
-  
+    } 
   }
 }
 
-void change_the_numbers(int menu_lvl, int line, short pos, short min_value, short max_value){
+
+void change_the_numbers(int menu_lvl, int line_lcd, short pos, short min_value, short max_value){
   // Функция меняет и отображает числа
 
   /*
@@ -174,47 +172,36 @@ void change_the_numbers(int menu_lvl, int line, short pos, short min_value, shor
   */
 
   lcd.setCursor(menu_level, line_lcd);
-  // изменение знаяения 
+  // изменение значения 
+  int tmp = dt[pos];
   if(enc.right()) dt[pos] += 1;
   if(enc.left()) dt[pos] -= 1;
 
   // проверка на переполнение
+  
   if (dt[pos] > max_value) dt[pos] = min_value;
   if (dt[pos] < min_value) dt[pos] = max_value;
-
-  // добавление лидирующиго нуля при необходимости
-  if(dt[pos] < 10){
-    print_on_lcd("0%d", dt[pos]);
-  }
-
-  else{
-    print_on_lcd("%d", dt[pos]);
-  }
-     
-
+  if (tmp == dt[pos]) return;  /// если обновления не происходило нечего не выводим
+  print_on_lcd(dt[pos]);
 }
 
 
-void print_on_lcd(char *format_str, int value){
- // Вывод на дисплей во время настройки чвсов
+void print_on_lcd(int value){
+ // Вывод на дисплей во время настройки часов
 
   char* buffer = malloc(4);
+  char* format_str = "%d";
+  // добавление лидирующиго нуля при необходимости
+  if (value < 10) format_str = "0%d";
   sprintf(buffer, format_str, value);
   lcd.print(buffer);
-  // if(millis() - sec_blink < 3500){
-  //   on_off_lcd = !on_off_lcd;
-  //   sec_blink =  millis();
-  // }
-    
-  // if(on_off_lcd) lcd.print(buffer);
-  // if(!on_off_lcd) lcd.print("  ");
-
   free(buffer);
+
 }
 
 void save_settings_and_exit(){
   // Сброс пременных на начальные значения и сохранение значений
-
+  lcd.noBlink();
   if (!change_min) dt[1] = rtc.getMinutes();  // если минуты не изменяли, обновляем данные в массиве, для сохранения точности хода
 
   // сброс значений на исходные 
@@ -222,10 +209,10 @@ void save_settings_and_exit(){
   line_lcd = 0;
   is_settings = false;
   change_min = false; 
-
   // обновление параметров
   rtc.setTime(rtc.getSeconds(), dt[1], dt[0], dt[2], dt[3], dt[4]);
 }
+
 void update_initial_values_dt(){
     // Обновление начальных заначений перед установкой даты и времени
     DateTime now = rtc.getTime();
@@ -236,6 +223,8 @@ void update_initial_values_dt(){
     dt[4] = now.year;
 
     // изменяем флаг входа в меню
-    is_settings = true;              // при первом нажатии входим в меню  
+    is_settings = true;              // при первом нажатии входим в меню, меняем флаг 
+    lcd.blink();                    
 }
+
 
