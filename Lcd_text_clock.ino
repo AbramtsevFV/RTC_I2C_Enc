@@ -257,4 +257,5 @@ void welcome(){
   lcd.setCursor(4,1);
   lcd.print("ПОЕХАЛИ");
   delay(1000);
+  lcd.clear();
 }
