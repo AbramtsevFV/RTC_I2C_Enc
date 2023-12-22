@@ -1,8 +1,11 @@
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+// #include <LiquidCrystal_I2C.h>
 #include <microDS3231.h>
 #include <stdio.h>
 #include <EncButton.h>
+// Данная беблиотека помогает выводить русский язык
+#define _LCD_TYPE 1
+#include <LCD_1602_RUS_ALL.h>
 
 
 // Пины RTC модуля 
@@ -20,7 +23,7 @@
 MicroDS3231 rtc;  
 
 // Создаём объект дисплея
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+LCD_1602_RUS lcd(0x27, 16, 2);
 
 // Создаём объект энеодер, c кнопкой
 EncButton enc(CLK, DT, SW, INPUT, INPUT_PULLUP);
@@ -32,6 +35,7 @@ float current_temp =0.0;
 short menu_level = -3;       // уровень меню
 short line_lcd = 0;         // строка дисплея
 int dt[6];                  // хранит текущие значения времени и даты для настройки
+char* day_of_week[] = {*"Пн.", "Вт.", "Ср.", "Чт.", "Пт.", "Сб.", "Вс."};
 uint32_t sec_blink = millis(); // для работы с задержками
 
 /*
@@ -56,6 +60,8 @@ void setup() {
   // Настройки lCD
   lcd.begin(); 
   lcd.backlight();
+  welcome();
+
   // Настройки порта
    Serial.begin(9600);
   
@@ -66,7 +72,6 @@ void setup() {
     rtc.setTime(BUILD_SEC, BUILD_MIN, BUILD_HOUR, BUILD_DAY, BUILD_MONTH, BUILD_YEAR);
   }
 }
-
 
 
 void loop() { 
@@ -86,14 +91,17 @@ void loop() {
         lcd.setCursor(0, 1);
         lcd.print(rtc.getDateString());
         last_day = rtc.getDay();
+        lcd.setCursor(12, 1);
+        lcd.print(day_of_week[rtc.getDay()-1]);
       }
 
       if(current_temp != rtc.getTemperatureFloat()){
         // вывод температуры, при езменении
         current_temp = rtc.getTemperatureFloat() - correction_temp;
         lcd.setCursor(9, 0);
-        lcd.print(current_temp);
-        lcd.print(" C");
+        lcd.print(String(current_temp));
+        lcd.write(223);
+        lcd.print("C");
       }
     }
   }
@@ -191,9 +199,11 @@ void print_on_lcd(int value){
 
   char* buffer = malloc(4);
   char* format_str = "%d";
+
   // добавление лидирующиго нуля при необходимости
   if (value < 10) format_str = "0%d";
   sprintf(buffer, format_str, value);
+
   lcd.print(buffer);
   free(buffer);
 
@@ -227,4 +237,24 @@ void update_initial_values_dt(){
     lcd.blink();                    
 }
 
+void welcome(){
 
+  // Шуточное приветствие
+  byte counter = 9;
+
+  lcd.setCursor(0,0);
+  lcd.print("Настольные часы");
+  lcd.setCursor(4,1);
+  lcd.print("Луноход");
+  while(counter > 0){
+    lcd.setCursor(15,1);
+    lcd.print(String(counter));
+    --counter;
+    delay(1000);
+  }
+
+  lcd.clear();
+  lcd.setCursor(4,1);
+  lcd.print("ПОЕХАЛИ");
+  delay(1000);
+}
